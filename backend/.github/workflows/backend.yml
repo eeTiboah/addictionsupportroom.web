@@ -1,0 +1,33 @@
+
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  docker-job:
+    name: Push to dockerhub
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: docker login
+      env:
+        DOCKER_USER: ${{secrets.DOCKER_USER}}
+        DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+      run: docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+
+    - name: build and push the docker image
+      run: |
+        docker build -t backend_sober .
+        docker tag backend_sober ${{secrets.DOCKER_USER}}/backend_sober:latest
+        docker push ${{secrets.DOCKER_USER}}/backend_sober:latest
+  
+  run-on-ec2:
+    name: Run pulled image on ec2 instance
+    runs-on: self-hosted
+    needs: docker-job
+    steps:
+      - run: |
+          sudo docker pull ${{secrets.DOCKER_USER}}/backend_sober:latest
+          sudo docker container run -dp 80:8080 ${{secrets.DOCKER_USER}}/backend_sober:latest
